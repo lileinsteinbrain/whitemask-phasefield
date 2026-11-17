@@ -56,22 +56,22 @@ Shader "WhiteMask/FaceQuantum"
                 return o;
             }
 
-            // 伪“锐度”：用平滑/对比来模拟“被看清”的感觉（不做真正模糊）
+            // Pseudo "sharpness": use smoothing/contrast to suggest "being seen clearly" (no real blur)
             float3 ApplySharpness(float3 c, float sharp){
-                // sharp=1 对比更强；sharp=0 轻微灰化
+                // sharp=1 stronger contrast; sharp=0 slightly greyed
                 float3 mid = float3(0.5,0.5,0.5);
                 return lerp(lerp(c, mid, 0.35), c*1.12, sharp);
             }
 
-            // 扫描线：CollapseLines 越高，线越明显
+            // Scan lines: the higher CollapseLines, the more visible
             float CollapseStripe(float2 uv, float strength){
                 float t = _Time.y * 2.0;
-                float lines = sin((uv.y + t) * 120.0);     // 纵向细条
-                lines = smoothstep(0.6, 0.95, lines);      // 只保留亮条
+                float lines = sin((uv.y + t) * 120.0);     // thin horizontal stripes
+                lines = smoothstep(0.6, 0.95, lines);      // keep only the bright stripes
                 return lerp(0.0, lines, strength);
             }
 
-            // 相位扰动：PhaseNoise 控制的 UV 扭曲（re-phase 的“自我重写”感）
+            // Phase distortion: UV warp controlled by PhaseNoise (the "self-rewriting" feel of re-phasing)
             float2 PhaseWarp(float2 uv, float strength){
                 if (strength <= 0.001) return uv;
                 float2 n1 = tex2D(_NoiseTex, uv*1.3 + _Time.y*0.07).rg;
@@ -82,25 +82,25 @@ Shader "WhiteMask/FaceQuantum"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // 相位扰动后的取样
+                // Sample after phase distortion
                 float2 uvW = PhaseWarp(i.uv, _PhaseNoise);
 
                 float3 baseCol = _BaseColor.rgb;
                 float3 albedo  = tex2D(_MainTex, uvW).rgb;
                 float3 face    = lerp(baseCol, albedo, 0.85);
 
-                // “锐度/可辨识度”
+                // "Sharpness / legibility"
                 face = ApplySharpness(face, _Sharpness);
 
-                // 亮度（被测量更亮、被看见更“暴露”）
+                // Brightness (brighter when measured: being seen means being "exposed")
                 face *= lerp(0.5, 1.6, _Brightness);
 
-                // 扫描线覆盖（线本身是亮度叠加）
+                // Scan-line overlay (lines add brightness)
                 float stripe = CollapseStripe(uvW, _CollapseLines);
                 face = saturate(face + stripe * 0.35);
 
-                // 透明度（抽身/抽象化）
-                float alpha = saturate(1.0 - _OpacityShift); // shift 越高越淡
+                // Transparency (withdrawal / abstraction)
+                float alpha = saturate(1.0 - _OpacityShift); // higher shift = fainter
 
                 return float4(face, alpha);
             }

@@ -4,44 +4,44 @@ using TMPro;
 public class WhiteMaskController : MonoBehaviour
 {
     [Header("Refs")]
-    public Renderer phaseFieldRenderer; // 内在相位场 (PhaseFieldSphere)
-    public Renderer faceRenderer;       // 外壳脸 (FaceProxy)
-    public TextMeshProUGUI uiText;      // 屏幕上的文字
+    public Renderer phaseFieldRenderer; // inner phase field (PhaseFieldSphere)
+    public Renderer faceRenderer;       // outer shell face (FaceProxy)
+    public TextMeshProUGUI uiText;      // on-screen text
 
     [Header("Face Materials")]
-    public Material matIdleSafe;        // 你自己决定的样子 / 稳定自持
-    public Material matExposed;         // 别人的读法 / 被迫单一化
-    public Material matAbstract;        // 抽象化防御 / 重新掌控解释权
+    public Material matIdleSafe;        // self-determined appearance / stable and self-held
+    public Material matExposed;         // read by others / forced into a single version
+    public Material matAbstract;        // abstraction as defence / reclaiming interpretation
 
     [Header("State Scalars")]
-    [Range(0f,1f)] public float agencyIndex = 1.0f;   // “我还能决定我是谁”的程度
-    [Range(0f,1f)] public float coherence   = 1.0f;   // “我还整合吗，还是碎成别人版本”
+    [Range(0f,1f)] public float agencyIndex = 1.0f;   // how much "I can still decide who I am"
+    [Range(0f,1f)] public float coherence   = 1.0f;   // "am I still whole, or fragmented into others' versions"
     private float agencyTarget    = 1.0f;
     private float coherenceTarget = 1.0f;
 
     [Header("Dynamics / Speeds")]
-    public float collapseSpeed = 4.0f;   // λ_M: 被看时往下掉多快
-    public float recoverSpeed  = 0.6f;   // λ_A: 我重新夺回时往上爬多快
-    public float idleSmooth    = 0.3f;   // 完全安全时的小幅收敛
+    public float collapseSpeed = 4.0f;   // λ_M: how fast it drops when observed
+    public float recoverSpeed  = 0.6f;   // λ_A: how fast it climbs back when reclaimed
+    public float idleSmooth    = 0.3f;   // slight convergence when fully safe
 
     [Header("Breath / Flicker")]
-    public float noiseAmp    = 0.05f;    // 呼吸幅度
-    public float noiseFreqHz = 1.2f;     // 呼吸频率
+    public float noiseAmp    = 0.05f;    // breathing amplitude
+    public float noiseFreqHz = 1.2f;     // breathing frequency
 
     [Header("Stochastic Measurement")]
-    [Tooltip("随机被观测的泊松率 λ_M（越大越容易随机触发被看见）")]
+    [Tooltip("Poisson rate λ_M of random observation (higher = more likely to be 'seen' at random)")]
     public float lambdaM = 0.8f;
 
     [Header("State Entry Pulse & Dwell")]
-    [Tooltip("进入任一状态时的入场脉冲时长(秒)")]
+    [Tooltip("Entry pulse duration when entering any state (seconds)")]
     public float stateEnterDuration = 0.20f; // 200ms
-    [Tooltip("Observed 最短驻留(秒)")]
+    [Tooltip("Minimum dwell time in Observed (seconds)")]
     public float minDwellObserved = 0.25f;
-    [Tooltip("RePhase 最短驻留(秒)")]
+    [Tooltip("Minimum dwell time in RePhase (seconds)")]
     public float minDwellRephase  = 0.40f;
 
     [Header("Stability / Debug")]
-    [Tooltip("Calm Mode 开启后：无随机被观测、无呼吸抖动、无入场脉冲")]
+    [Tooltip("Calm Mode: no random observation, no breathing jitter, no entry pulse")]
     public bool calmMode = true;
 
     private bool beingObserved = false;
@@ -50,7 +50,7 @@ public class WhiteMaskController : MonoBehaviour
     private ViewState currentState = ViewState.IdleSafe;
     private ViewState lastState    = ViewState.IdleSafe;
 
-    // 进入态计时 & 驻留计时
+    // Entry-state timer & dwell timer
     private float stateEnterTimer = 0f;
     private float stateTime       = 0f;
 
@@ -58,17 +58,17 @@ public class WhiteMaskController : MonoBehaviour
 
     void Update()
     {
-        // ======= 0) 计算“有效参数”（受 calmMode 控制）=======
+        // ======= 0) Compute effective parameters (affected by calmMode) =======
         float effLambdaM   = calmMode ? 0f : lambdaM;
         float effNoiseAmp  = calmMode ? 0f : noiseAmp;
         float effNoiseFreq = calmMode ? 0f : noiseFreqHz;
         float effEnterDur  = calmMode ? 0.0001f : Mathf.Max(0.0001f, stateEnterDuration);
 
-        // ======= 1) 计时推进 =======
+        // ======= 1) Advance timers =======
         stateEnterTimer += Time.deltaTime;
         stateTime       += Time.deltaTime;
 
-        // ======= 2) 输入：G/H 键模拟外部凝视 vs 自我反抗 =======
+        // ======= 2) Input: G/H keys simulate external gaze vs. self-resistance =======
         bool keyGDown = Input.GetKey(KeyCode.G);
         bool keyGUp   = Input.GetKeyUp(KeyCode.G);
         bool keyH     = Input.GetKeyDown(KeyCode.H);
@@ -77,7 +77,7 @@ public class WhiteMaskController : MonoBehaviour
         if (keyGUp)   SetRephase();
         if (keyH)     SetRephase();
 
-        // ——(A) 随机观测事件（泊松过程）——
+        // --(A) Random observation events (Poisson process)--
         if (!beingObserved && currentState != ViewState.ObservedCollapse)
         {
             if (Random.value < effLambdaM * Time.deltaTime)
@@ -86,7 +86,7 @@ public class WhiteMaskController : MonoBehaviour
             }
         }
 
-        // ——(B) 驻留/迟滞——
+        // --(B) Dwell / hysteresis--
         if (currentState == ViewState.ObservedCollapse &&
             stateTime >= minDwellObserved &&
             !Input.GetKey(KeyCode.G))
@@ -102,14 +102,14 @@ public class WhiteMaskController : MonoBehaviour
             SetIdle();
         }
 
-        // ======= 3) 目标缓慢推向 1.0 / 1.0（仅 RePhase 时自动上扬）=======
+        // ======= 3) Targets drift slowly toward 1.0 / 1.0 (only rises automatically in RePhase) =======
         if (!beingObserved && currentState == ViewState.RePhaseOverride)
         {
             agencyTarget    = Mathf.MoveTowards(agencyTarget,    1.0f, 0.2f * Time.deltaTime);
             coherenceTarget = Mathf.MoveTowards(coherenceTarget, 1.0f, 0.2f * Time.deltaTime);
         }
 
-        // ======= 4) 实际数值向 target 逼近 =======
+        // ======= 4) Move actual values toward targets =======
         switch (currentState)
         {
             case ViewState.ObservedCollapse:
@@ -126,14 +126,14 @@ public class WhiteMaskController : MonoBehaviour
                 break;
         }
 
-        // （保底）若完全恢复则 Idle
+        // (Fallback) return to Idle once fully recovered
         if (!beingObserved && currentState != ViewState.IdleSafe &&
             agencyIndex > 0.99f && coherence > 0.99f)
         {
             SetIdle();
         }
 
-        // ======= 5) 呼吸/抖动（内在相位场 & UI）=======
+        // ======= 5) Breathing / jitter (inner phase field & UI) =======
         float t = Time.time * effNoiseFreq;
         float sinusBreath = Mathf.Sin(t * 2f * Mathf.PI) * (effNoiseAmp * 0.5f);
         float microJitter = UnityEngine.Random.Range(-effNoiseAmp, effNoiseAmp) * 0.1f;
@@ -149,20 +149,20 @@ public class WhiteMaskController : MonoBehaviour
             matInner.SetFloat("_Coherence",  stabVisual);
         }
 
-        // ======= 6) FaceProxy：状态基线 + 入场脉冲（受 calmMode 抑制）=======
+        // ======= 6) FaceProxy: state baseline + entry pulse (suppressed in calmMode) =======
         if (faceRenderer != null)
         {
-            // 切外层材质
+            // Switch outer material
             Material chosen = matIdleSafe;
             if (currentState == ViewState.ObservedCollapse)      chosen = matExposed;
             else if (currentState == ViewState.RePhaseOverride)  chosen = matAbstract;
             faceRenderer.material = chosen;
 
-            // 进入态脉冲 (0→1→0)
+            // Entry pulse (0 -> 1 -> 0)
             float u = Mathf.Clamp01(stateEnterTimer / effEnterDur);
             float enterPulse = (calmMode ? 0f : (1f - u) * Mathf.Sin(u * Mathf.PI)); // calmMode=0
 
-            // 基线
+            // Baseline
             float baseBright, baseSharp, baseLines, basePhase, baseOpacity;
             switch (currentState)
             {
@@ -190,14 +190,14 @@ public class WhiteMaskController : MonoBehaviour
                     break;
             }
 
-            // 叠加内在偏移
+            // Add inner offset
             float brightness = Mathf.Clamp01(baseBright + (agencyIndex - 0.58f) * 0.40f);
             float sharpness  = Mathf.Clamp01(baseSharp  + (coherence   - 0.55f) * 0.50f);
             float lines      = baseLines;
             float phaseN     = basePhase;
             float opacityS   = baseOpacity;
 
-            // 入场脉冲
+            // Entry pulse
             if (currentState == ViewState.ObservedCollapse)
             {
                 brightness += 0.25f * enterPulse;
@@ -241,7 +241,7 @@ public class WhiteMaskController : MonoBehaviour
 
         lastState = currentState;
 
-        // ======= 8) Debug 日志 =======
+        // ======= 8) Debug log =======
         Debug.Log("[" + Time.time.ToString("0.00") + "s] " +
                   "agency=" + agencyIndex.ToString("0.00") + ", " +
                   "coherence=" + coherence.ToString("0.00") + ", " +
@@ -249,7 +249,7 @@ public class WhiteMaskController : MonoBehaviour
                   (calmMode ? " (calm)" : ""));
     }
 
-    // ======================== 状态切换封装 ========================
+    // ======================== State transition helpers ========================
     private void SetObserved()
     {
         beingObserved = true;

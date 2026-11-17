@@ -26,13 +26,13 @@ public class PhaseFieldController : MonoBehaviour
 
     void Update()
     {
-        // 左键单击（或轻触）→ 模拟 measurement collapse
+        // Left click (or tap) -> simulate measurement collapse
         if (Input.GetMouseButtonDown(0))
         {
             Measure();
         }
 
-        // 长按（或持续 gaze）→ 模拟 re-phasing（重相干）
+        // Long press (or sustained gaze) -> simulate re-phasing (regaining coherence)
         if (Input.GetMouseButton(0))
         {
             RePhase();
@@ -69,7 +69,7 @@ public class PhaseFieldController : MonoBehaviour
         float fog = Mathf.Lerp(0.6f, 0.05f, coherence);
 
         Color newColor = baseColor * brightness;
-        newColor.a = 1f - fog; // 用 alpha 模拟“可见度”
+        newColor.a = 1f - fog; // use alpha to represent "visibility"
         phaseRenderer.material.color = newColor;
     }
 }
